@@ -1,0 +1,56 @@
+## Artisan Mentor: A GenAI-Powered Platform for Artisans
+
+This project is a GenAI-powered platform designed to help artisans bridge the gap between traditional craftsmanship and modern digital audiences.
+
+## How it aligns with goals
+- **Expands digital presence**: Story-first Canvas converts artisan voice, motifs, and lineage into audience-ready narratives and shareable dossier snapshots, lowering the marketing skill barrier while preserving authenticity.
+- **Improves marketing and sales strategy**: Opportunity Stack uses explainability chips tied to Trends momentum and event proximity, making decisions data-backed and time-aware rather than generic.
+- **Bridges tradition and modern demand**: RAG retrieval grounds content in cultural sources and craft techniques while Gemini reframes them for contemporary segments (collectors, corporate gifting, tourism).
+- **Scales access cost-effectively**: Vertex AI Flash/Pro mix and serverless pipelines (Cloud Run Jobs + Scheduler) keep latency and cost low, enabling sustainable rollouts across regions.
+
+## Innovative implementation on top of current features
+- **Time-bridge timeline**: Visualizes demand spikes with production backtracks and “days-to-event,” turning signals into immediate action windows; artisans see when to produce, pitch, or ship.
+- **Scenario Lab with feasibility physics**: Drag a craft into “décor/gifting/wellness/museum” zones to see feasibility turn green/red based on capacity, fragility, and lead time, with auto-generated prep checklists.
+- **Evidence chips everywhere**: Every suggestion shows micro-evidence like “+18% 4-week momentum” and “14 days to festival,” building trust and enabling learning without analytics overload.
+- **Structured-output narratives**: Enforce JSON schemas for multi-audience stories so content is instantly reusable across web, social, and WhatsApp without rework.
+- **Signals as a first-class prompt input**: The BFF injects compact, token-cheap Signals blocks (momentum, days-to-event) alongside RAG contexts, improving precision and keeping costs predictable.
+
+## Measurable outcomes that match the brief
+- **Faster go-to-market**: From voice note to shareable dossier and timed outreach in minutes, not weeks of learning multiple tools.
+- **Higher relevance and conversion**: Opportunities and scenarios are filtered by feasibility and tied to real-world timing, reducing wasted production and mistimed campaigns.
+- **Cultural sustainability**: Retrieval anchors outputs in heritage documents and lineage stories, helping artisans monetize authenticity rather than dilute it.
+
+## Execution plan to operationalize innovation
+- **RAG backbone**: Embed curated cultural/craft docs with gecko@003, serve via Vertex Vector Search, and retrieve k contexts per query for grounded generation.
+- **BFF orchestration**: Compose “Insights Bundles” per profile by calling retrieve → load Signals → generate (flash/pro) → validate schemas; cache for snappy mobile UX.
+- **Weekly signals pipeline**: Cloud Run Job + Scheduler writes per-region features (momentum, z-scores, days-to-event) to GCS; BFF reads the latest partition to drive chips and prompts.
+- **Frontend patterns**: Story Canvas, Opportunity Stack, Scenario Lab, and Time-bridge as the default dashboard, optimized for low-literacy, mobile contexts.
+
+In short, this approach squarely addresses the problem statement with culturally grounded, explainable AI; it transforms scarce artisan inputs into timed, audience-specific outputs through a modern yet affordable stack, and the innovative UI/UX ensures those insights become action—preserving tradition while unlocking new digital markets.
+
+## Current Project Status
+
+### 1. Data Ingestion (`jobs/ingest_text`)
+- `run.py` script created to read text files from `data/text`, chunk them by paragraph, and save them to `data/processed_text`.
+- `requirements.txt` created.
+- A sample `crafts.txt` file has been created in `data/text`.
+- The script has been successfully executed, and `data/processed_text/processed_crafts.txt` has been generated.
+
+### 2. Embedding Generation (`jobs/embed_chunks`)
+- `requirements.txt` updated with `google-cloud-aiplatform` and `google-generativeai`.
+- `embed_job.py` script created to generate embeddings using the `gemini-embedding-001` model from the `google-generativeai` library.
+- **Action Required:** The script requires an API key from Google AI Studio. Please replace the placeholder `"YOUR_API_KEY"` in `embed_job.py` with your actual API key. You can obtain an API key from [Google AI Studio](https://aistudio.google.com/app/apikey).
+- The script is ready to run once the API key is provided.
+
+### 3. Vector Search Index Setup (`jobs/index_setup`)
+- `requirements.txt` updated with `google-cloud-aiplatform`.
+- `index_setup.py` script created to set up a Vertex AI Vector Search index and endpoint.
+- **Action Required:** The script requires a GCS URI where the `vectors.jsonl` file (generated by `embed_job.py`) is uploaded. Please replace the placeholder `"gs://your-bucket/path/to/vectors.jsonl"` in `index_setup.py` with the actual GCS path.
+- The script is ready to run once the GCS URI is provided.
+
+[1] https://cloud.google.com/vertex-ai/generative-ai/docs/start/quickstart
+[2] https://ai.google.dev/gemini-api/docs/structured-output
+[3] https://seoscout.com/google-trends-seo-explained-how-to-use-trends-for-keyword-research
+[4] https://cloud.google.com/run/docs/execute/jobs-on-schedule
+[5] https://newsinitiative.withgoogle.com/resources/trainings/basics-of-google-trends/
+[6] https://ai.google.dev/gemini-api/docs/quickstart

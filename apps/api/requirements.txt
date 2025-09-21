@@ -1,0 +1,10 @@
+fastapi
+uvicorn
+google-cloud-aiplatform
+google-generativeai
+requests
+pytrends
+ddgs
+passlib[bcrypt]
+python-jose[cryptography]
+sqlalchemy
