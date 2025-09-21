@@ -6,29 +6,27 @@ import ReactMarkdown from 'react-markdown'
 import { useRouter } from 'next/navigation'
 
 interface ChatMessage {
-  sender: string;
-  text: string;
-  time: string;
-  timestamp?: string;
+  sender: string
+  text: string
+  time: string
+  timestamp?: string
 }
 
 interface ChatSession {
-  id: number;
-  title: string;
-  owner_id: number;
-  created_at: string;
-  messages: ChatMessage[];
+  id: number
+  title: string
+  owner_id: number
+  created_at: string
+  messages: ChatMessage[]
 }
 
-// Declare SpeechRecognition and webkitSpeechRecognition globally
+// Declare SpeechRecognition globally
 declare global {
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
   interface Window {
-    SpeechRecognition: any;
-    webkitSpeechRecognition: any;
+    SpeechRecognition: any
+    webkitSpeechRecognition: any
   }
 }
-  // const [isListening, setIsListening] = useState(false)
 
 export default function MentorChat() {
   const [mentorPrompt, setMentorPrompt] = useState('')
@@ -37,12 +35,39 @@ export default function MentorChat() {
   const [mentorError, setMentorError] = useState<string | null>(null)
   const [chatSessionId, setChatSessionId] = useState<number | null>(null)
   const [chatSessions, setChatSessions] = useState<ChatSession[]>([])
-   const [isListening, setIsListening] = useState(false);
+  const [isListening, setIsListening] = useState(false)
+  const [recognition, setRecognition] = useState<SpeechRecognition | null>(null)
+
   const router = useRouter()
 
-  // Speech Recognition setup
-  const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition
-  const recognition = SpeechRecognition ? new SpeechRecognition() : null
+  // Initialize SpeechRecognition in the browser only
+  useEffect(() => {
+    if (typeof window !== 'undefined') {
+      const SpeechRecognition =
+        window.SpeechRecognition || window.webkitSpeechRecognition
+      if (SpeechRecognition) {
+        const recog = new SpeechRecognition()
+        recog.continuous = false
+        recog.interimResults = false
+        recog.lang = 'en-US'
+
+        recog.onresult = (event: SpeechRecognitionEvent) => {
+          const transcript = event.results[0][0].transcript
+          setMentorPrompt(transcript)
+          setIsListening(false)
+        }
+
+        recog.onerror = (event: any) => {
+          console.error('Speech recognition error:', event.error)
+          setIsListening(false)
+          setMentorError('Voice input error. Please try again.')
+        }
+
+        recog.onend = () => setIsListening(false)
+        setRecognition(recog)
+      }
+    }
+  }, [])
 
   useEffect(() => {
     const token = localStorage.getItem('access_token')
@@ -54,25 +79,23 @@ export default function MentorChat() {
     const fetchChatSessions = async () => {
       try {
         const res = await fetch('http://localhost:8000/chat/chats', {
-          headers: {
-            'Authorization': `Bearer ${token}`,
-          },
+          headers: { Authorization: `Bearer ${token}` },
         })
-        if (!res.ok) {
-          throw new Error('Failed to fetch chat sessions')
-        }
+        if (!res.ok) throw new Error('Failed to fetch chat sessions')
         const data: ChatSession[] = await res.json()
         setChatSessions(data)
         if (data.length > 0) {
-          // Load the first chat session by default
           setChatSessionId(data[0].id)
-          setChatHistory(data[0].messages.map(msg => ({
-            sender: msg.sender,
-            text: msg.text,
-            time: msg.timestamp ? new Date(msg.timestamp).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) : new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
-          })))
+          setChatHistory(
+            data[0].messages.map((msg) => ({
+              sender: msg.sender,
+              text: msg.text,
+              time: msg.timestamp
+                ? new Date(msg.timestamp).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
+                : new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
+            }))
+          )
         } else {
-          // If no sessions, add a welcome message
           setChatHistory([
             {
               sender: 'mentor',
@@ -88,28 +111,7 @@ export default function MentorChat() {
     }
 
     fetchChatSessions()
-
-    if (recognition) {
-      recognition.continuous = false // Listen for a single phrase
-      recognition.interimResults = false // Only return final results
-
-      recognition.onresult = (event) => {
-        const transcript = event.results[0][0].transcript
-        setMentorPrompt(transcript)
-        setIsListening(false)
-      }
-
-      recognition.onerror = (event) => {
-        console.error('Speech recognition error:', event.error)
-        setIsListening(false)
-        setMentorError('Voice input error. Please try again.')
-      }
-
-      recognition.onend = () => {
-        setIsListening(false)
-      }
-    }
-  }, [router, recognition]) // Added recognition to dependency array
+  }, [router])
 
   const toggleListening = () => {
     if (!recognition) {
@@ -119,8 +121,7 @@ export default function MentorChat() {
     if (isListening) {
       recognition.stop()
       setIsListening(false)
-    }
-    else {
+    } else {
       setMentorError(null)
       recognition.start()
       setIsListening(true)
@@ -129,22 +130,18 @@ export default function MentorChat() {
 
   const createNewChatSession = async () => {
     const token = localStorage.getItem('access_token')
-    if (!token) {
-      router.push('/login')
-      return
-    }
+    if (!token) return router.push('/login')
+
     try {
       const res = await fetch('http://localhost:8000/chat/chats', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
-          'Authorization': `Bearer ${token}`,
+          Authorization: `Bearer ${token}`,
         },
-        body: JSON.stringify({ title: `New Chat ${chatSessions.length + 1}` }), // Default title
+        body: JSON.stringify({ title: `New Chat ${chatSessions.length + 1}` }),
       })
-      if (!res.ok) {
-        throw new Error('Failed to create new chat session')
-      }
+      if (!res.ok) throw new Error('Failed to create new chat session')
       const newSession: ChatSession = await res.json()
       setChatSessions((prev) => [...prev, newSession])
       setChatSessionId(newSession.id)
@@ -162,26 +159,24 @@ export default function MentorChat() {
 
   const loadChatSession = async (sessionId: number) => {
     const token = localStorage.getItem('access_token')
-    if (!token) {
-      router.push('/login')
-      return
-    }
+    if (!token) return router.push('/login')
+
     try {
       const res = await fetch(`http://localhost:8000/chat/chats/${sessionId}`, {
-        headers: {
-          'Authorization': `Bearer ${token}`,
-        },
+        headers: { Authorization: `Bearer ${token}` },
       })
-      if (!res.ok) {
-        throw new Error('Failed to load chat session')
-      }
+      if (!res.ok) throw new Error('Failed to load chat session')
       const session: ChatSession = await res.json()
       setChatSessionId(session.id)
-      setChatHistory(session.messages.map(msg => ({
-        sender: msg.sender,
-        text: msg.text,
-        time: msg.timestamp ? new Date(msg.timestamp).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) : new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
-      })))
+      setChatHistory(
+        session.messages.map((msg) => ({
+          sender: msg.sender,
+          text: msg.text,
+          time: msg.timestamp
+            ? new Date(msg.timestamp).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
+            : new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
+        }))
+      )
     } catch (error: any) {
       setMentorError(error.message || 'Failed to load chat session')
     }
@@ -189,35 +184,20 @@ export default function MentorChat() {
 
   const saveChatMessage = async (sessionId: number, message: ChatMessage) => {
     const token = localStorage.getItem('access_token')
-    if (!token) {
-      router.push('/login')
-      return
-    }
+    if (!token) return router.push('/login')
     try {
-      const res = await fetch(`http://localhost:8000/chat/chats/${sessionId}/messages`, {
+      await fetch(`http://localhost:8000/chat/chats/${sessionId}/messages`, {
         method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          'Authorization': `Bearer ${token}`,
-        },
+        headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
         body: JSON.stringify({ sender: message.sender, text: message.text }),
       })
-      if (!res.ok) {
-        throw new Error('Failed to save chat message')
-      }
     } catch (error: any) {
       console.error('Error saving message:', error)
-      // Optionally set error state, but don't block chat flow
     }
   }
 
   const getMentorAdvisory = async () => {
-    if (!mentorPrompt.trim()) return
-    if (!chatSessionId) {
-      setMentorError('Please select or create a chat session first.')
-      return
-    }
-
+    if (!mentorPrompt.trim() || !chatSessionId) return
     setMentorLoading(true)
     setMentorError(null)
 
@@ -228,23 +208,17 @@ export default function MentorChat() {
     }
 
     setChatHistory((prev) => [...prev, userMessage])
-    await saveChatMessage(chatSessionId, userMessage) // Save user message
+    await saveChatMessage(chatSessionId, userMessage)
 
     try {
       const token = localStorage.getItem('access_token')
-      if (!token) {
-        throw new Error('Authentication token not found. Please log in.')
-      }
+      if (!token) throw new Error('Authentication token not found. Please log in.')
 
       const res = await fetch(`http://127.0.0.1:8000/mentor/advise`, {
         method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          'Authorization': `Bearer ${token}`,
-        },
-        body: JSON.stringify({ prompt: mentorPrompt, chat_id: chatSessionId }), // Pass chat_id
+        headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
+        body: JSON.stringify({ prompt: mentorPrompt, chat_id: chatSessionId }),
       })
-
       if (!res.ok) {
         const errorData = await res.json()
         throw new Error(errorData.detail || errorData.message || 'Failed to get mentor advisory')
@@ -258,11 +232,14 @@ export default function MentorChat() {
       }
 
       setChatHistory((prev) => [...prev, mentorMessage])
-      await saveChatMessage(chatSessionId, mentorMessage) // Save mentor message
+      await saveChatMessage(chatSessionId, mentorMessage)
       setMentorPrompt('')
     } catch (error: any) {
       setMentorError(error.message || 'An unknown error occurred')
-      if (error.message.includes('Authentication token not found') || error.message.includes('Could not validate credentials')) {
+      if (
+        error.message.includes('Authentication token not found') ||
+        error.message.includes('Could not validate credentials')
+      ) {
         router.push('/login')
       }
     } finally {
@@ -271,10 +248,10 @@ export default function MentorChat() {
   }
 
   return (
-  <div className="min-h-screen bg-gradient-to-br from-blue-100 to-blue-300 flex p-4"> {/* Blue shades */}
-      {/* Sidebar for chat sessions */}
+    <div className="min-h-screen bg-gradient-to-br from-blue-100 to-blue-300 flex p-4">
+      {/* Sidebar */}
       <div className="w-64 bg-white rounded-2xl shadow-2xl overflow-hidden flex flex-col mr-4">
-        <div className="bg-gradient-to-r from-blue-700 to-blue-900 text-white p-4 flex items-center justify-between"> {/* Darker blue */}
+        <div className="bg-gradient-to-r from-blue-700 to-blue-900 text-white p-4 flex items-center justify-between">
           <h2 className="text-lg font-semibold">Chats</h2>
           <button onClick={createNewChatSession} className="p-1 rounded-full hover:bg-white hover:bg-opacity-20 transition">
             <PlusCircle className="h-6 w-6" />
@@ -296,10 +273,9 @@ export default function MentorChat() {
         </div>
       </div>
 
-      {/* Main Chat Window */}
+      {/* Main Chat */}
       <div className="flex-1 w-full max-w-2xl bg-white rounded-2xl shadow-2xl overflow-hidden flex flex-col">
-        {/* Header */}
-        <div className="bg-gradient-to-r from-blue-700 to-blue-900 text-white p-4 flex items-center gap-3"> {/* Darker blue */}
+        <div className="bg-gradient-to-r from-blue-700 to-blue-900 text-white p-4 flex items-center gap-3">
           <Bot className="h-7 w-7" />
           <div>
             <h1 className="text-lg font-semibold">Artisan Mentor</h1>
@@ -307,15 +283,12 @@ export default function MentorChat() {
           </div>
         </div>
 
-        {/* Chat Window */}
         <div className="flex-1 overflow-y-auto p-4 space-y-4 bg-gray-50">
           {chatHistory.map((msg, idx) => (
             <div key={idx} className={`flex ${msg.sender === 'user' ? 'justify-end' : 'justify-start'}`}>
               <div
                 className={`max-w-sm px-4 py-2 rounded-2xl shadow-md relative ${
-                  msg.sender === 'user'
-                    ? 'bg-blue-600 text-white rounded-br-none' // User message blue
-                    : 'bg-white border text-gray-800 rounded-bl-none'
+                  msg.sender === 'user' ? 'bg-blue-600 text-white rounded-br-none' : 'bg-white border text-gray-800 rounded-bl-none'
                 }`}
               >
                 {msg.sender === 'mentor' && <Bot className="absolute -top-3 -left-3 h-6 w-6 text-blue-700 bg-white rounded-full shadow-md" />}
@@ -331,7 +304,6 @@ export default function MentorChat() {
           {mentorError && <div className="text-red-500 text-sm">Error: {mentorError}</div>}
         </div>
 
-        {/* Input */}
         <div className="border-t bg-white flex items-center p-3">
           <input
             type="text"
@@ -343,11 +315,9 @@ export default function MentorChat() {
             disabled={mentorLoading || chatSessionId === null}
           />
           <button
-            onClick={toggleListening} // Voice input button
+            onClick={toggleListening}
             disabled={mentorLoading || chatSessionId === null || !recognition}
-            className={`ml-2 p-2 rounded-full shadow-lg transition ${
-              isListening ? 'bg-red-500 hover:bg-red-600' : 'bg-blue-500 hover:bg-blue-600'
-            } text-white`}
+            className={`ml-2 p-2 rounded-full shadow-lg transition ${isListening ? 'bg-red-500 hover:bg-red-600' : 'bg-blue-500 hover:bg-blue-600'} text-white`}
           >
             {isListening ? <MicOff className="h-5 w-5" /> : <Mic className="h-5 w-5" />}
           </button>
@@ -360,7 +330,6 @@ export default function MentorChat() {
           </button>
         </div>
 
-        {/* Footer */}
         <div className="bg-gray-100 text-xs text-gray-600 p-2 text-center">
           💡 Try asking: "How can I grow as a creative?" or "Give me a minimal design idea."
         </div>
