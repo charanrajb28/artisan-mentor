@@ -9,6 +9,7 @@ interface ChatMessage {
   sender: string;
   text: string;
   time: string;
+  timestamp?: string;
 }
 
 interface ChatSession {
@@ -21,11 +22,13 @@ interface ChatSession {
 
 // Declare SpeechRecognition and webkitSpeechRecognition globally
 declare global {
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
   interface Window {
-    SpeechRecognition: typeof SpeechRecognition;
-    webkitSpeechRecognition: typeof SpeechRecognition;
+    SpeechRecognition: any;
+    webkitSpeechRecognition: any;
   }
 }
+  // const [isListening, setIsListening] = useState(false)
 
 export default function MentorChat() {
   const [mentorPrompt, setMentorPrompt] = useState('')
@@ -34,6 +37,7 @@ export default function MentorChat() {
   const [mentorError, setMentorError] = useState<string | null>(null)
   const [chatSessionId, setChatSessionId] = useState<number | null>(null)
   const [chatSessions, setChatSessions] = useState<ChatSession[]>([])
+   const [isListening, setIsListening] = useState(false);
   const router = useRouter()
 
   // Speech Recognition setup
@@ -65,7 +69,7 @@ export default function MentorChat() {
           setChatHistory(data[0].messages.map(msg => ({
             sender: msg.sender,
             text: msg.text,
-            time: new Date(msg.timestamp).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
+            time: msg.timestamp ? new Date(msg.timestamp).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) : new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
           })))
         } else {
           // If no sessions, add a welcome message
@@ -176,7 +180,7 @@ export default function MentorChat() {
       setChatHistory(session.messages.map(msg => ({
         sender: msg.sender,
         text: msg.text,
-        time: new Date(msg.timestamp).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
+        time: msg.timestamp ? new Date(msg.timestamp).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) : new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
       })))
     } catch (error: any) {
       setMentorError(error.message || 'Failed to load chat session')
@@ -267,7 +271,7 @@ export default function MentorChat() {
   }
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-blue-100 to-blue-300 flex p-4"> {/* Blue shades */}
+  <div className="min-h-screen bg-gradient-to-br from-blue-100 to-blue-300 flex p-4"> {/* Blue shades */}
       {/* Sidebar for chat sessions */}
       <div className="w-64 bg-white rounded-2xl shadow-2xl overflow-hidden flex flex-col mr-4">
         <div className="bg-gradient-to-r from-blue-700 to-blue-900 text-white p-4 flex items-center justify-between"> {/* Darker blue */}
@@ -359,7 +363,7 @@ export default function MentorChat() {
         {/* Footer */}
         <div className="bg-gray-100 text-xs text-gray-600 p-2 text-center">
           💡 Try asking: "How can I grow as a creative?" or "Give me a minimal design idea."
-        }
+        </div>
       </div>
     </div>
   )
